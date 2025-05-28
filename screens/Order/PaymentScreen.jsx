@@ -49,9 +49,8 @@ const PaymentScreen = ({ navigation, route }) => {
       // Add delay to ensure order is processed
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Open browser with return URL
-      // const returnUrl = `sehaty://payment-complete/${response._id}`;
-      const returnUrl = `https://sehaty.bright-ignite.com/api/payment/paymob/callback`;
+      // Use the deep link as return URL
+      const returnUrl = response.deepLink;
       console.log("[PAYMOB] Expected return URL:", returnUrl);
 
       const result = await WebBrowser.openAuthSessionAsync(
@@ -62,7 +61,6 @@ const PaymentScreen = ({ navigation, route }) => {
 
       // Handle iOS-specific behavior
       if (Platform.OS === "ios") {
-        // Sometimes iOS needs manual redirection
         if (result.type === "cancel" && result.url) {
           console.log("[PAYMOB] iOS cancel with URL - attempting redirect");
           Linking.openURL(returnUrl);
@@ -73,21 +71,39 @@ const PaymentScreen = ({ navigation, route }) => {
       await WebBrowser.dismissBrowser();
       console.log("[PAYMOB] Browser dismissed");
 
-      // Navigate to success screen
-      navigation.navigate("OrderSuccessScreen", {
-        orderId: response._id,
-        paymentMethod: "paymob",
-        total: total,
-        paymentCompleted: true,
-      });
+      // Check if payment was successful
+      if (result.type === "success" || result.url?.includes("payment-complete")) {
+        // Navigate to success screen
+        navigation.navigate("OrderSuccessScreen", {
+          orderId: response._id,
+          paymentMethod: "paymob",
+          total: total,
+          paymentCompleted: true,
+        });
+      } else {
+        // Navigate to failure screen
+        navigation.navigate("OrderFailureScreen", {
+          error: "Payment was not completed. Please try again.",
+          orderData: {
+            selectedAddress,
+            cartItems,
+            total,
+          },
+          paymentMethod: "paymob",
+        });
+      }
     } catch (error) {
       console.error("[PAYMOB ERROR] Payment failed:", error);
       await WebBrowser.dismissBrowser();
-      Alert.alert(
-        "Payment Error",
-        "Failed to complete payment. Please check your orders.",
-        [{ text: "OK" }]
-      );
+      navigation.navigate("OrderFailureScreen", {
+        error: "Payment failed. Please try again.",
+        orderData: {
+          selectedAddress,
+          cartItems,
+          total,
+        },
+        paymentMethod: "paymob",
+      });
     }
   };
   const handlePlaceOrder = async () => {

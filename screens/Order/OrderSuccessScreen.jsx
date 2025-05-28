@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,23 +6,30 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Linking,
-  Alert
+  Alert,
+  Platform,
+  ActivityIndicator
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import { cartAPI } from '../../services/api';
 
 const OrderSuccessScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { orderId, total = 0, paymentMethod, paymentUrl, paymentCompleted } = route.params || {};
+  const { orderId, total = 0, paymentMethod, paymentCompleted } = route.params || {};
+  const [isVerifying, setIsVerifying] = useState(false);
 
-useEffect(() => {
-  const handleDeepLink = (event) => {
-    if (event.url.includes('payment-complete')) {
-      const orderIdFromUrl = event.url.split('/').pop();
-      if (orderIdFromUrl === orderId) {
-        // Payment completed successfully
+  // Add payment verification
+  const verifyPaymentStatus = async () => {
+    if (paymentMethod !== 'paymob' || paymentCompleted) return;
+    
+    try {
+      setIsVerifying(true);
+      const response = await cartAPI.verifyPayment(orderId);
+      
+      if (response.isPaid) {
         navigation.replace("OrderSuccessScreen", {
           orderId,
           total,
@@ -30,17 +37,56 @@ useEffect(() => {
           paymentCompleted: true
         });
       }
+    } catch (error) {
+      console.error('[PAYMENT VERIFICATION] Error:', error);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
-  // Add event listener
-  Linking.addEventListener('url', handleDeepLink);
+  useEffect(() => {
+    const handleDeepLink = async (event) => {
+      console.log('[DEEP LINK] Received URL:', event.url);
+      
+      if (event.url.includes('payment-complete')) {
+        const orderIdFromUrl = event.url.split('/').pop();
+        console.log('[DEEP LINK] Extracted order ID:', orderIdFromUrl);
+        
+        if (orderIdFromUrl === orderId) {
+          // Verify payment status when deep link is received
+          await verifyPaymentStatus();
+        }
+      }
+    };
 
-  // Clean up
-  return () => {
-    Linking.removeEventListener('url', handleDeepLink);
-  };
-}, [orderId, paymentMethod, total]);
+    // Add event listener
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check for initial URL
+    const checkInitialURL = async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        handleDeepLink({ url: initialUrl });
+      }
+    };
+
+    checkInitialURL();
+
+    // Start polling for payment status if it's a Paymob payment
+    let pollInterval;
+    if (paymentMethod === 'paymob' && !paymentCompleted) {
+      pollInterval = setInterval(verifyPaymentStatus, 5000); // Poll every 5 seconds
+    }
+
+    // Clean up
+    return () => {
+      subscription.remove();
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [orderId, paymentMethod, total, paymentCompleted]);
+
   const handleTrackOrder = () => {
     navigation.navigate('OrderTracking', { orderId });
   };
@@ -54,14 +100,22 @@ useEffect(() => {
   };
 
   // For Paymob payments, show different messaging
-  const isPaymobPending = paymentMethod === 'paymob' && !paymentUrl;
+  const isPaymobPending = paymentMethod === 'paymob' && !paymentCompleted;
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           {isPaymobPending ? (
-            <Ionicons name="time-outline" size={80} color="#FFA000" />
+            <>
+              <Ionicons name="time-outline" size={80} color="#FFA000" />
+              {isVerifying && (
+                <View style={styles.verifyingContainer}>
+                  <ActivityIndicator size="small" color="#FFA000" />
+                  <Text style={styles.verifyingText}>Verifying payment...</Text>
+                </View>
+              )}
+            </>
           ) : (
             <Ionicons name="checkmark-circle" size={80} color="#1B794B" />
           )}
@@ -135,7 +189,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1B794B',
+    color: '#333',
     marginBottom: 10,
     textAlign: 'center',
   },
@@ -147,25 +201,24 @@ const styles = StyleSheet.create({
   },
   orderDetails: {
     width: '100%',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#f5f5f5',
     padding: 20,
     borderRadius: 10,
     marginBottom: 30,
   },
   orderId: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
     color: '#333',
     marginBottom: 10,
   },
   amount: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1B794B',
-    marginBottom: 5,
+    marginBottom: 10,
   },
   paymentMethod: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666',
   },
   buttonContainer: {
@@ -182,15 +235,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#1B794B',
   },
   ordersButton: {
-    backgroundColor: '#1976D2',
+    backgroundColor: '#4CAF50',
   },
   shopButton: {
-    backgroundColor: '#FFA000',
+    backgroundColor: '#81C784',
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: 'bold',
+  },
+  verifyingContainer: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  verifyingText: {
+    marginTop: 5,
+    color: '#FFA000',
+    fontSize: 12,
   },
 });
 
