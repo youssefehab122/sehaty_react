@@ -53,11 +53,20 @@ const PaymentScreen = ({ navigation, route }) => {
       const returnUrl = response.deepLink;
       console.log("[PAYMOB] Expected return URL:", returnUrl);
 
+      // Open browser with return URL
       const result = await WebBrowser.openAuthSessionAsync(
         paymentUrl,
-        returnUrl
+        returnUrl,
+        {
+          showInRecents: true,
+          preferEphemeralSession: true,
+        }
       );
       console.log("[PAYMOB] Browser result:", JSON.stringify(result, null, 2));
+
+      // Close browser regardless of result
+      await WebBrowser.dismissBrowser();
+      console.log("[PAYMOB] Browser dismissed");
 
       // Handle iOS-specific behavior
       if (Platform.OS === "ios") {
@@ -66,10 +75,6 @@ const PaymentScreen = ({ navigation, route }) => {
           Linking.openURL(returnUrl);
         }
       }
-
-      // Close browser regardless of result
-      await WebBrowser.dismissBrowser();
-      console.log("[PAYMOB] Browser dismissed");
 
       // Check if payment was successful
       if (result.type === "success" || result.url?.includes("payment-complete")) {
