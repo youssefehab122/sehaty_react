@@ -5,8 +5,16 @@ import { authAPI } from "../../services/api";
 import { setSelectedAddress } from "./addressSlice";
 import { handleValidationError, getErrorMessage } from "../../utils/validationErrorHandler";
 import axios from 'axios';
+import { Platform } from 'react-native';
 
-const API_URL = 'https://sehaty.bright-ignite.com/api';
+// Use different URLs for development and production
+const API_URL = process.env.NODE_ENV === 'development'
+  ? Platform.select({
+      ios: "http://localhost:5050/api", // For iOS simulator
+      android: "http://10.0.2.2:5050/api", // For Android emulator
+      default: "http://localhost:5050/api",
+    })
+  : 'https://sehaty.bright-ignite.com/api';
 
 // Add axios interceptor for debugging
 axios.interceptors.request.use(

@@ -239,7 +239,8 @@ export default function HomeScreen({ navigation }) {
                   onPress={() => navigation.navigate("Medicines", { categoryId: item._id })}
                 >
                   <View style={styles.categoryIconContainer}>
-                    <Text style={styles.categoryIcon}>💊</Text>
+                    <Image source={{ uri: item.image }} style={styles.categoryIcon} />
+                    
                   </View>
                   <Text style={styles.categoryName} numberOfLines={2}>
                     {item.name}
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   scrollSpacer: {
-    height: 150, // Should match your header height
+    height: 200, // Should match your header height
   },
   bodyContainer: {
     padding: 16,
@@ -476,10 +477,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   productsContainer: {
+    paddingHorizontal: 16,
     paddingBottom: 8,
   },
   productCardContainer: {
-    width: width * 0.8,
+    width: width * 0.55,
     marginRight: 16,
   },
   pharmacyContainer: {

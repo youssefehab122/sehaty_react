@@ -162,6 +162,13 @@ const PrescriptionDetailsScreen = ({ route, navigation }) => {
           )}
         </View>
 
+        {prescription.ocrText && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 16 }}>Extracted Text:</Text>
+            <Text style={{ color: '#444', marginTop: 4 }}>{prescription.ocrText}</Text>
+          </View>
+        )}
+
         {/* Medicines List */}
         <View style={styles.medicinesContainer}>
           <Text style={styles.sectionTitle}>Prescribed Medicines</Text>

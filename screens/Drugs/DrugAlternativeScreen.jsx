@@ -14,6 +14,8 @@ import { useDispatch } from "react-redux";
 import { addToCart } from "../../store/slices/cartSlice";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { productsAPI } from "../../services/api";
+import { cartAPI } from "../../services/api";
+import { roundToNearestHours } from "date-fns";
 
 export default function DrugAlternativeScreen({ navigation, route }) {
   console.log('DrugAlternativeScreen - Initial Render');
@@ -66,19 +68,69 @@ export default function DrugAlternativeScreen({ navigation, route }) {
     }
   };
 
-  const handleAddToCart = (item) => {
+  const handleAddToCart = async (item) => {
     console.log('handleAddToCart called for item:', JSON.stringify(item, null, 2));
     if (!item.pharmacyInfo) {
       console.warn('No pharmacy info available for item');
       Alert.alert('Error', 'This medicine is not available in any pharmacy');
       return;
     }
-    console.log('Dispatching addToCart action');
-    dispatch(addToCart({
-      ...item,
-      quantity: 1
-    }));
-    Alert.alert('Success', 'Medicine added to cart successfully!');
+
+    try {
+      // Get the original medicine ID from route params
+      const originalMedicineId = route.params.medicine._id;
+      
+      // First add the new item to cart via API
+      const response = await cartAPI.addToCart(
+        item._id,
+        1,
+        item.pharmacyInfo.pharmacyId
+      );
+
+      if (!response || !response.items) {
+        throw new Error('Invalid response from cart API');
+      }
+
+      // Find the newly added item in the response
+      const addedItem = response.items.find(
+        cartItem => cartItem.medicineId._id === item._id
+      );
+
+      if (!addedItem) {
+        throw new Error('Could not find added item in cart response');
+      }
+
+      // Remove the old item from cart if it exists
+      if (originalMedicineId) {
+        try {
+          await cartAPI.removeFromCart({ 
+            medicineId: originalMedicineId,
+            pharmacyId: item.pharmacyInfo.pharmacyId // Use the new pharmacy ID
+          });
+        } catch (removeError) {
+          console.warn('Error removing old item:', removeError);
+          // Continue even if removal fails
+        }
+      }
+
+      // Dispatch to Redux with the correct data structure
+      dispatch(addToCart({
+        medicineId: addedItem.medicineId._id,
+        pharmacyId: addedItem.pharmacyId._id,
+        quantity: 1,
+        price: addedItem.price,
+        name: addedItem.medicineId.name,
+        image: addedItem.medicineId.image,
+        description: addedItem.medicineId.description,
+        isAvailable: true
+      }));
+
+      Alert.alert('Success', 'Alternative medicine added to cart successfully!');
+      navigation.goBack(); // Go back to cart screen
+    } catch (error) {
+      console.error('Error updating cart:', error);
+      Alert.alert('Error', 'Failed to update cart. Please try again.');
+    }
   };
 
   const renderAlternativeItem = (item) => {

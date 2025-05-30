@@ -234,11 +234,11 @@ export default function ProductScreen({ route, navigation }) {
           <TouchableOpacity 
             style={styles.addToCartButton}
             onPress={() => {
-              dispatch(addToCart({
-                ...product,
-                quantity: 1
-              }));
-              navigation.navigate("Cart");
+              // dispatch(addToCart({
+              //   ...product,
+              //   quantity: 1
+              // }));
+              // navigation.navigate("Cart");
             }}
           >
             <Text style={styles.addToCartText}>Add to Cart</Text>

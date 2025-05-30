@@ -188,8 +188,8 @@ const AppContent = () => {
     });
 
     return () => {
-      Notifications.removeNotificationSubscription(notificationListener.current);
-      Notifications.removeNotificationSubscription(responseListener.current);
+      // Notifications.remove(notificationListener.current);
+      // Notifications.remove(responseListener.current);
     };
   }, []);
 
@@ -215,7 +215,7 @@ const AppContent = () => {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={{padding:5}}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NavigationContainer ref={navigationRef}>
           {user ? <MainNavigator /> : <AuthNavigator />}

@@ -2,15 +2,14 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, Platform } from "react-native";
 
-// Use different URLs for iOS and Android
-const API_URL_LOCAL = Platform.select({
-  ios: "https://sehaty.bright-ignite.com/api", // For iOS simulator
-  android: "https://sehaty.bright-ignite.com/api", // For Android emulator
-  default: "https://sehaty.bright-ignite.com/api",
-});
-
-// For physical devices, you'll need to use your computer's IP address
-// const API_URL = 'http://YOUR_COMPUTER_IP:5050/api';
+// Use different URLs for development and production
+const API_URL_LOCAL = process.env.NODE_ENV === 'development'
+  ? Platform.select({
+      ios: "http://localhost:5050/api", // For iOS simulator
+      android: "http://10.0.2.2:5050/api", // For Android emulator
+      default: "http://localhost:5050/api",
+    })
+  : "https://sehaty.bright-ignite.com/api";
 
 // Create axios instance with default config
 const api = axios.create({
@@ -18,7 +17,8 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000, // 10 seconds timeout
+  timeout: 30000, // 30 seconds timeout
+  withCredentials: true, // Enable sending cookies
 });
 
 // Add request interceptor to add auth token and handle errors
@@ -35,12 +35,15 @@ api.interceptors.request.use(
         delete config.headers["Content-Type"];
       }
 
-      console.log("API Request:", {
-        url: config.url,
-        method: config.method,
-        headers: config.headers,
-        data: config.data,
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log("API Request:", {
+          url: config.url,
+          method: config.method,
+          headers: config.headers,
+          data: config.data instanceof FormData ? 'FormData' : config.data,
+          baseURL: config.baseURL,
+        });
+      }
 
       return config;
     } catch (error) {
@@ -56,8 +59,29 @@ api.interceptors.request.use(
 
 // Add response interceptor to handle common errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log("API Response:", {
+        status: response.status,
+        headers: response.headers,
+        data: response.data,
+      });
+    }
+    return response;
+  },
   async (error) => {
+    console.error("API Error:", {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers,
+        baseURL: error.config?.baseURL,
+      },
+    });
     if (error.response) {
       // Handle specific error cases
       switch (error.response.status) {
@@ -778,20 +802,58 @@ export const prescriptionAPI = {
   // Upload a new prescription
   uploadPrescription: async (formData) => {
     try {
-      console.log("Uploading prescription...");
+      console.log('Uploading prescription...');
+      
+      // Log FormData contents for debugging
+      for (let [key, value] of formData._parts) {
+        console.log(`FormData ${key}:`, value);
+      }
+
+      // Get the auth token
+      const token = await AsyncStorage.getItem("@auth_token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const response = await api.post("/prescriptions/upload", formData, {
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}`,
+          "Accept": "application/json",
+        },
+        transformRequest: (data, headers) => {
+          return data; // Don't transform the FormData
+        },
+        timeout: 120000, // 2 minutes timeout for large file uploads
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log(`Upload progress: ${percentCompleted}%`);
         },
       });
+
       console.log("Upload response:", response.data);
       return response.data;
     } catch (error) {
-      console.error(
-        "Error uploading prescription:",
-        error.response?.data || error.message
-      );
-      throw handleApiError(error);
+      console.error("Error uploading prescription:", error);
+      console.error("Error details:", {
+        code: error.code,
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers,
+          baseURL: error.config?.baseURL,
+        },
+      });
+
+      if (error.code === 'ERR_NETWORK') {
+        throw new Error('Network error. Please check your internet connection and try again.');
+      } else if (error.message === 'No authentication token found') {
+        throw new Error('Please login again to continue.');
+      } else {
+        throw handleApiError(error);
+      }
     }
   },
 

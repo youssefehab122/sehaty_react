@@ -177,7 +177,26 @@ console.log("BEST Pharmacy ==> ", JSON.stringify(item,null,2));
           </View>
           <Text style={styles.productQuantity}>{item.quantity}</Text>
           {!item.isAvailable && (
-            <Text style={styles.outOfStock}>Out of Stock</Text>
+            <View style={styles.outOfStockContainer}>
+              <Text style={styles.outOfStock}>Out of Stock</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("DrugAlternative", {
+                  medicine: {
+                    _id: item._id,
+                    name: item.name,
+                    price: item.price,
+                    image: item.image,
+                    description: item.description,
+                    activeIngredient: item.activeIngredient,
+                    alternatives: item.alternatives,
+                    isAvailable: item.isAvailable,
+                    pharmacyInfo: item.pharmacyInfo
+                  }
+                })}
+              >
+                <Text style={styles.findAlternative}>Find Alternative?</Text>
+              </TouchableOpacity>
+            </View>
           )}
           <View style={styles.productFooter}>
             <View style={styles.priceContainer}>
@@ -429,11 +448,19 @@ const styles = StyleSheet.create({
     color: "#606060",
     marginTop: 4,
   },
+  outOfStockContainer: {
+    marginTop: 4,
+  },
   outOfStock: {
     fontSize: 12,
     color: "#E53935",
     fontWeight: "bold",
-    marginTop: 4,
+  },
+  findAlternative: {
+    fontSize: 12,
+    color: "#1B794B",
+    fontWeight: "bold",
+    marginTop: 2,
   },
   productFooter: {
     flexDirection: "row",

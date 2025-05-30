@@ -95,6 +95,11 @@ const PrescriptionListScreen = ({ navigation }) => {
             {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
           </Text>
         </View>
+        {item.ocrText && (
+          <Text numberOfLines={2} style={{ color: '#888', marginTop: 4 }}>
+            {item.ocrText}
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );

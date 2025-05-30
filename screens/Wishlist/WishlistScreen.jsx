@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { cartAPI } from "../../services/api";
 const WishlistScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { items, loading, error } = useSelector((state) => state.wishlist);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   useEffect(() => {
     dispatch(fetchWishlist());
@@ -37,106 +38,72 @@ const WishlistScreen = ({ navigation }) => {
   };
 
   const handleAddToCart = async (item) => {
+    if (isAddingToCart) return; // Prevent multiple calls
+    
     console.log("the basic item data:", JSON.stringify(item, null, 2));
     if (item.pharmacyInfo.stock <= 0) {
       console.log("Error: Item out of stock");
       Alert.alert("Error", "This medicine is out of stock");
       return;
     }
-    let medicineId = item.medicineId;
-    let pharmacyId = item.pharmacyInfo.pharmacyId;
-    const cartItem = {
-      medicineId,
-      pharmacyId,
-      qty: 1,
-    };
+
     try {
-      const response = await cartAPI.addToCart(medicineId, 1, pharmacyId);
+      setIsAddingToCart(true); // Set loading state
+
+      // First check if item is already in cart
+      const cartResponse = await cartAPI.getCart();
+      const existingItem = cartResponse.items?.find(
+        cartItem => cartItem.medicineId._id === item.medicineId
+      );
+
+      if (existingItem) {
+        Alert.alert("Info", "Item is already in your cart");
+        return;
+      }
+
+      // Add new item to cart
+      const response = await cartAPI.addToCart(
+        item.medicineId,
+        1,
+        item.pharmacyInfo.pharmacyId
+      );
 
       if (!response || !response.items) {
         Alert.alert("Error", "Failed to add item to cart");
         return;
       }
-      response.items.map((addedItem) => {
-        dispatch(
-          addToCart({
-            medicineId: addedItem.medicineId._id,
-            pharmacyId: addedItem.pharmacyId._id,
-            qty: addedItem.quantity,
-          })
-        );
-      });
+
+      // Find the newly added item in the response
+      const addedItem = response.items.find(
+        cartItem => cartItem.medicineId._id === item.medicineId
+      );
+
+      if (!addedItem) {
+        throw new Error('Could not find added item in cart response');
+      }
+
+      // Only dispatch the newly added item with quantity 1
+      dispatch(
+        addToCart({
+          medicineId: addedItem.medicineId._id,
+          pharmacyId: addedItem.pharmacyId._id,
+          qty: 1,
+          price: addedItem.price,
+          name: addedItem.medicineId.name,
+          image: addedItem.medicineId.image,
+          description: addedItem.medicineId.description,
+          isAvailable: true
+        })
+      );
 
       Alert.alert("Success", "Added to cart successfully!");
     } catch (err) {
       console.error("=== Add to Cart Error ===");
       console.error("Error details:", err);
       Alert.alert("Error", err.message || "Failed to add item to cart");
+    } finally {
+      setIsAddingToCart(false); // Reset loading state
     }
-    // try {
-    //   console.log("=== Add to Cart Debug ===");
-    //   console.log("1. Initial item data:", JSON.stringify(item, null, 2));
-
-    //   if (!item.pharmacyInfo || !item.pharmacyInfo.pharmacyId) {
-    //     console.log("Error: No pharmacy info or pharmacyId available");
-    //     Alert.alert('Error', 'This medicine is not available in any pharmacy');
-    //     return;
-    //   }
-
-    //   // Ensure medicineId is a string
-    //   const medicineId = typeof item.medicineId === 'object' && item.medicineId._id
-    //     ? item.medicineId._id
-    //     : item.medicineId || item._id;
-    //   // Ensure pharmacyId is a string
-    //   const pharmacyId = typeof item.pharmacyInfo.pharmacyId === 'object' && item.pharmacyInfo.pharmacyId._id
-    //     ? item.pharmacyInfo.pharmacyId._id
-    //     : item.pharmacyInfo.pharmacyId;
-
-    //   if (!medicineId || !pharmacyId) {
-    //     Alert.alert('Error', 'Medicine or pharmacy information is missing.');
-    //     return;
-    //   }
-
-    //   const cartItem = {
-    //     medicineId: medicineId,
-    //     pharmacyId: pharmacyId,
-    //     quantity: 1
-    //   };
-
-    //   console.log("4. Final cart item data:", JSON.stringify(cartItem, null, 2));
-
-    //   const response = await cartAPI.addToCart(cartItem.medicineId, cartItem.quantity, cartItem.pharmacyId);
-
-    //   if (!response || !response.items) {
-    //     throw new Error('Invalid response from cart API');
-    //   }
-
-    //   // Find the newly added item in the response
-    //   const addedItem = response.items.find(
-    //     item => (item.medicineId._id === medicineId || item.medicineId === medicineId) &&
-    //              (item.pharmacyId._id === pharmacyId || item.pharmacyId === pharmacyId)
-    //   );
-
-    //   if (!addedItem) {
-    //     throw new Error('Could not find added item in cart response');
-    //   }
-
-    //   dispatch(addToCart({
-    //     medicineId: addedItem.medicineId._id || addedItem.medicineId,
-    //     pharmacyId: addedItem.pharmacyId._id || addedItem.pharmacyId,
-    //     quantity: addedItem.quantity,
-    //     price: addedItem.price,
-    //     name: addedItem.medicineId.name,
-    //     image: addedItem.medicineId.image,
-    //     description: addedItem.medicineId.description
-    //   }));
-
-    //   Alert.alert('Success', 'Added to cart successfully!');
-    // } catch (err) {
-    //   console.error("=== Add to Cart Error ===");
-    //   console.error("Error details:", err);
-    //   Alert.alert('Error', err.message || 'Failed to add item to cart');
-    // }
   };
 
   const renderItem = ({ item }) => (
@@ -197,17 +164,20 @@ const WishlistScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.addToCartButton,
-              (!item.pharmacyInfo || item.pharmacyInfo.stock <= 0) &&
+              (!item.pharmacyInfo || item.pharmacyInfo.stock <= 0 || isAddingToCart) &&
                 styles.disabledButton,
             ]}
             onPress={() =>
               item.pharmacyInfo &&
               item.pharmacyInfo.stock > 0 &&
+              !isAddingToCart &&
               handleAddToCart(item)
             }
-            disabled={!item.pharmacyInfo || item.pharmacyInfo.stock <= 0}
+            disabled={!item.pharmacyInfo || item.pharmacyInfo.stock <= 0 || isAddingToCart}
           >
-            <Text style={styles.addToCartText}>Add to Cart</Text>
+            <Text style={styles.addToCartText}>
+              {isAddingToCart ? "Adding..." : "Add to Cart"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -62,6 +62,9 @@ export default function CartScreen() {
   const deliveryFee = 25;
   const totalWithDelivery = total + deliveryFee;
 
+  // Check if any item is out of stock
+  const hasOutOfStockItems = items.some(item => !item.medicineId?.isAvailable);
+
   const handleRemoveItem = async (itemId) => {
     console.log("item ID to remove:", JSON.stringify(itemId,null,2));
     try {
@@ -263,11 +266,18 @@ export default function CartScreen() {
                   </View>
                 </View>
                 <TouchableOpacity
-                  style={styles.checkoutButton}
+                  style={[
+                    styles.checkoutButton,
+                    hasOutOfStockItems && styles.disabledButton
+                  ]}
                   onPress={() => navigation.navigate("Order")}
+                  disabled={hasOutOfStockItems}
                 >
-                  <Text style={styles.checkoutButtonText}>
-                    Proceed to Checkout
+                  <Text style={[
+                    styles.checkoutButtonText,
+                    hasOutOfStockItems && styles.disabledButtonText
+                  ]}>
+                    {hasOutOfStockItems ? 'Out of Stock Items' : 'Proceed to Checkout'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -536,5 +546,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  disabledButton: {
+    backgroundColor: "#ccc",
+  },
+  disabledButtonText: {
+    color: "#666",
   },
 });
