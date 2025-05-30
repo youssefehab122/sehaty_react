@@ -98,13 +98,12 @@ const AppContent = () => {
       // Add slight delay for iOS
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      navigate("OrderStack", {
-        screen: "OrderSuccessScreen",
-        params: {
+      navigate("OrderSuccessScreen", {
+      
           orderId,
           paymentMethod: "paymob",
           paymentCompleted: true
-        }
+        
       });
     }
   };
@@ -121,13 +120,11 @@ const AppContent = () => {
       // Add delay for navigation to work properly
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      navigate("OrderStack", {
-        screen: "OrderSuccessScreen",
-        params: {
+      navigate("OrderSuccessScreen", {
           orderId,
           paymentMethod: "paymob",
           paymentCompleted: true
-        }
+        
       });
     }
   };
@@ -161,13 +158,11 @@ const AppContent = () => {
     const initialUrl = await Linking.getInitialURL();
     if (initialUrl && initialUrl.includes("payment-complete")) {
       const orderId = initialUrl.split("/").pop();
-      navigate("OrderStack", {
-        screen: "OrderSuccessScreen",
-        params: {
+      navigate("OrderSuccessScreen", {
           orderId,
           paymentMethod: "paymob",
           paymentCompleted: true
-        }
+        
       });
     }
   };

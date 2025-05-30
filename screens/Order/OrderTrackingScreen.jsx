@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { cartAPI, productsAPI } from '../../services/api';
 
 const OrderTrackingScreen = ({ route, navigation }) => {
@@ -273,10 +273,10 @@ const OrderTrackingScreen = ({ route, navigation }) => {
               {order.paymentMethod === 'cash' ? (
                 <FontAwesome name="money" size={24} color="#1B794B" />
               ) : (
-                <MaterialIcons name="account-balance-wallet" size={24} color="#1B794B" />
+                <FontAwesome5 name="cc-visa" size={24} color="#1B794B" />
               )}
               <Text style={styles.paymentText}>
-                {order.paymentMethod === 'cash' ? 'Cash on Delivery' : 'Wallet Payment'}
+                {order.paymentMethod }
               </Text>
             </View>
             <Text style={styles.paymentStatus}>

@@ -39,6 +39,8 @@ const TrackOrderScreen = ({ navigation, route }) => {
     switch (status) {
       case "pending":
         return "#FFA500";
+      case 'payment_pending':
+        return "#FFA500";
       case "processing":
         return "#1B794B";
       case "shipped":
@@ -56,6 +58,8 @@ const TrackOrderScreen = ({ navigation, route }) => {
     switch (status) {
       case "pending":
         return "clock-outline";
+      case 'payment_pending':
+        return 'cog-outline';
       case "processing":
         return "cog-outline";
       case "shipped":
@@ -190,7 +194,7 @@ const TrackOrderScreen = ({ navigation, route }) => {
                 <MaterialIcons name="account-balance-wallet" size={24} color="#1B794B" />
               )}
               <Text style={styles.paymentText}>
-                {order.paymentMethod === 'cash' ? 'Cash on Delivery' : 'Wallet Payment'}
+                {order.paymentMethod}
               </Text>
             </View>
           </View>

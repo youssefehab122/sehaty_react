@@ -86,13 +86,16 @@ const OrdersScreen = ({ navigation }) => {
 
   const renderOrderItem = ({ item }) => {
     if (!item) return null;
-
+    // console.log('Order Item:', JSON.stringify(item, null, 2));
     const orderId = item._id || item.id || 'Unknown';
     const status = item.status || 'pending';
     const createdAt = item.createdAt || new Date().toISOString();
     const items = item.items || [];
-    const total = item.total || 0;
-
+    let total = item.total || 0;
+    items.map(item2=>{
+      // console.log("order item2:", JSON.stringify(item2, null, 2));
+      total += item2.price;
+    })
     return (
       <TouchableOpacity
         style={styles.orderCard}

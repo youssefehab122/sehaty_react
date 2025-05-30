@@ -4,13 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Use different URLs for development and production
-const BASE_URL = process.env.NODE_ENV === 'development'
-  ? Platform.select({
-      ios: "http://localhost:5050/api", // For iOS simulator
-      android: "http://10.0.2.2:5050/api", // For Android emulator
-      default: "http://localhost:5050/api",
-    })
-  : 'https://sehaty.bright-ignite.com/api';
+const BASE_URL ="https://52f6-196-158-202-163.ngrok-free.app/api";
 
 // Create axios instance with default config
 const axiosInstance = axios.create({

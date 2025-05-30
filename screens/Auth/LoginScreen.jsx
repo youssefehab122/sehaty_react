@@ -91,6 +91,8 @@ export default function LoginScreen({ navigation }) {
       
       if (error.response) {
         // Handle specific error cases
+        console.log('Error response:', JSON.stringify(error, null, 2));
+        console.log('Error response2:', JSON.stringify(error.response, null, 2));
         switch (error.response.status) {
           case 400:
             errorMessage = 'Invalid email or password format.';

@@ -8,13 +8,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 
 // Use different URLs for development and production
-const API_URL = process.env.NODE_ENV === 'development'
-  ? Platform.select({
-      ios: "http://localhost:5050/api", // For iOS simulator
-      android: "http://10.0.2.2:5050/api", // For Android emulator
-      default: "http://localhost:5050/api",
-    })
-  : 'https://sehaty.bright-ignite.com/api';
+const API_URL ="https://52f6-196-158-202-163.ngrok-free.app/api";
 
 // Add axios interceptor for debugging
 axios.interceptors.request.use(
@@ -80,6 +74,8 @@ export const login = createAsyncThunk(
 
       return response.data;
     } catch (error) {
+      console.log('Error response:', JSON.stringify(error, null, 2));
+      console.log('Error response2:', JSON.stringify(error.response, null, 2));
       console.error('Login error:', {
         message: error.message,
         response: error.response?.data,

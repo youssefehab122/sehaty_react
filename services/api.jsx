@@ -1,15 +1,10 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, Platform } from "react-native";
+import axiosRetry from 'axios-retry';
 
 // Use different URLs for development and production
-const API_URL_LOCAL = process.env.NODE_ENV === 'development'
-  ? Platform.select({
-      ios: "http://localhost:5050/api", // For iOS simulator
-      android: "http://10.0.2.2:5050/api", // For Android emulator
-      default: "http://localhost:5050/api",
-    })
-  : "https://sehaty.bright-ignite.com/api";
+const API_URL_LOCAL = "https://52f6-196-158-202-163.ngrok-free.app/api";
 
 // Create axios instance with default config
 const api = axios.create({
@@ -19,6 +14,17 @@ const api = axios.create({
   },
   timeout: 30000, // 30 seconds timeout
   withCredentials: true, // Enable sending cookies
+});
+
+// Add retry logic for failed requests
+axiosRetry(api, { 
+  retries: 3,
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) => {
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) || 
+           error.code === 'ERR_NETWORK' ||
+           error.message.includes('Network Error');
+  }
 });
 
 // Add request interceptor to add auth token and handle errors
@@ -33,6 +39,8 @@ api.interceptors.request.use(
       // Don't set Content-Type for FormData requests
       if (config.data instanceof FormData) {
         delete config.headers["Content-Type"];
+        // Add boundary for multipart/form-data
+        config.headers["Content-Type"] = "multipart/form-data";
       }
 
       if (process.env.NODE_ENV === 'development') {
@@ -802,7 +810,7 @@ export const prescriptionAPI = {
   // Upload a new prescription
   uploadPrescription: async (formData) => {
     try {
-      console.log('Uploading prescription...');
+      console.log('Starting prescription upload...');
       
       // Log FormData contents for debugging
       for (let [key, value] of formData._parts) {
@@ -815,10 +823,39 @@ export const prescriptionAPI = {
         throw new Error("No authentication token found");
       }
 
-      const response = await api.post("/prescriptions/upload", formData, {
+      // Create a new FormData instance to ensure proper formatting
+      const uploadFormData = new FormData();
+      
+      // Add image with proper metadata
+      const imageData = formData._parts.find(part => part[0] === 'image')[1];
+      uploadFormData.append('image', {
+        uri: imageData.uri,
+        type: 'image/jpeg',
+        name: imageData.fileName || 'prescription.jpg',
+      });
+
+      // Add other fields
+      uploadFormData.append('title', formData._parts.find(part => part[0] === 'title')[1]);
+      uploadFormData.append('doctorName', formData._parts.find(part => part[0] === 'doctorName')[1]);
+      uploadFormData.append('doctorSpecialty', formData._parts.find(part => part[0] === 'doctorSpecialty')[1]);
+      uploadFormData.append('validUntil', formData._parts.find(part => part[0] === 'validUntil')[1]);
+
+      console.log('Making API request with config:', {
+        url: '/prescriptions/upload',
+        method: 'post',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 120000, // 2 minutes timeout for large file uploads
+      });
+
+      const response = await api.post("/prescriptions/upload", uploadFormData, {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Accept": "application/json",
+          "Content-Type": "multipart/form-data",
         },
         transformRequest: (data, headers) => {
           return data; // Don't transform the FormData
@@ -847,12 +884,19 @@ export const prescriptionAPI = {
         },
       });
 
+      // Enhanced error handling
       if (error.code === 'ERR_NETWORK') {
         throw new Error('Network error. Please check your internet connection and try again.');
-      } else if (error.message === 'No authentication token found') {
-        throw new Error('Please login again to continue.');
+      } else if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        throw new Error(error.response.data?.message || 'Server error occurred');
+      } else if (error.request) {
+        // The request was made but no response was received
+        throw new Error('No response from server. Please try again.');
       } else {
-        throw handleApiError(error);
+        // Something happened in setting up the request that triggered an Error
+        throw new Error(error.message || 'An unexpected error occurred');
       }
     }
   },
